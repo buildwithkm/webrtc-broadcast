@@ -40,7 +40,7 @@ webrtc-broadcast-room/
 1. **Clone the repository:**
 
 ```bash
-git clone https://github.com/your-username/webrtc-broadcast-room.git
+git clone https://github.com/buildwithkm/webrtc-broadcast-room.git
 cd webrtc-broadcast-room
 ```
 2. **Install dependencies:**
