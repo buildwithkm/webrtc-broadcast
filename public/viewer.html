@@ -1,67 +1,56 @@
-<!-- 
 <!DOCTYPE html>
 <html>
-<head><title>Viewer</title></head>
-<body>
-  <h2>Viewer</h2>
-  <input id="roomInput" placeholder="Enter Room ID" />
-  <button onclick="joinRoom()">Join Room</button>
-  <video id="viewerVideo" autoplay playsinline></video>
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const socket = io();
-    const viewerVideo = document.getElementById("viewerVideo");
-    let pc;
 
-    function joinRoom() {
-      const roomId = document.getElementById("roomInput").value;
-      if (!roomId) return alert("Enter room ID");
-      socket.emit("join-room", roomId);
-    }
-
-    socket.on("receive-offer", async ({ offer, hostId }) => {
-      pc = new RTCPeerConnection();
-
-      pc.ontrack = e => {
-        viewerVideo.srcObject = e.streams[0];
-      };
-
-      pc.onicecandidate = e => {
-        if (e.candidate) {
-          socket.emit("ice-candidate", {
-            candidate: e.candidate,
-            targetId: hostId
-          });
-        }
-      };
-
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      socket.emit("viewer-answer", { answer, hostId });
-    });
-
-    socket.on("ice-candidate", ({ candidate }) => {
-      pc.addIceCandidate(new RTCIceCandidate(candidate));
-    });
-  </script>
-</body>
-</html> -->
-
-
-<!DOCTYPE html>
-<html>
 <head>
   <title>Viewer</title>
   <style>
-    body { display: flex; height: 100vh; margin: 0; font-family: sans-serif; }
-    #users { width: 20%; background: #eee; padding: 10px; overflow-y: auto; }
-    #chat { width: 20%; background: #f7f7f7; padding: 10px; display: flex; flex-direction: column; }
-    #main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
-    video { width: 80%; height: auto; border: 2px solid #333; }
-    #controls { position: absolute; bottom: 10px; background: #fff; padding: 10px; border-radius: 10px; }
+    body {
+      display: flex;
+      height: 100vh;
+      margin: 0;
+      font-family: sans-serif;
+    }
+
+    #users {
+      width: 20%;
+      background: #eee;
+      padding: 10px;
+      overflow-y: auto;
+    }
+
+    #chat {
+      width: 20%;
+      background: #f7f7f7;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    video {
+      width: 80%;
+      height: auto;
+      border: 2px solid #333;
+    }
+
+    #controls {
+      position: absolute;
+      bottom: 10px;
+      background: #fff;
+      padding: 10px;
+      border-radius: 10px;
+    }
   </style>
 </head>
+
 <body>
   <div id="users">
     <h4>Users</h4>
@@ -80,68 +69,8 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const socket = io();
-    const username = prompt("Enter your name");
-    const roomId = prompt("Enter Room ID to join");
-    const video = document.getElementById("remoteVideo");
-    const messages = document.getElementById("messages");
-    const userList = document.getElementById("userList");
-    let pc;
+  <script src="js/viewer.js"></script>
 
-    socket.emit("join-room", { roomId, username });
-
-    socket.on("receive-offer", async ({ offer, hostId }) => {
-      pc = new RTCPeerConnection();
-      pc.ontrack = e => {
-        video.srcObject = e.streams[0];
-      };
-      pc.onicecandidate = e => {
-        if (e.candidate) {
-          socket.emit("ice-candidate", { candidate: e.candidate, targetId: hostId });
-        }
-      };
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      socket.emit("viewer-answer", { answer, hostId });
-    });
-
-    socket.on("ice-candidate", ({ candidate, senderId }) => {
-      pc.addIceCandidate(new RTCIceCandidate(candidate));
-    });
-
-    function sendMessage() {
-      const input = document.getElementById("chatInput");
-      if (input.value) {
-        socket.emit("chat-message", input.value);
-        input.value = "";
-      }
-    }
-
-    socket.on("chat-message", ({ user, message }) => {
-      messages.innerHTML += `<div><b>${user}:</b> ${message}</div>`;
-    });
-
-    socket.on("update-user-list", users => {
-      userList.innerHTML = "";
-      for (let id in users) {
-        const li = document.createElement("li");
-        li.textContent = users[id];
-        userList.appendChild(li);
-      }
-    });
-
-    socket.on("meeting-ended", () => {
-      alert("Meeting ended by host.");
-      window.location.reload();
-    });
-
-    function leaveMeeting() {
-      alert("You have left the meeting.");
-      window.location.reload();
-    }
-  </script>
 </body>
-</html>
 
+</html>
