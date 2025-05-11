@@ -53,9 +53,9 @@ node server.js
 ```
 3. **Open in browser:**
 
-Host: http://localhost:3000/host.html
+Host: http://localhost:3090/host.html
 
-Viewer: http://localhost:3000/viewer.html
+Viewer: http://localhost:3090/viewer.html
 
 
 
