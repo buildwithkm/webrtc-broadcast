@@ -1,0 +1,177 @@
+<!-- 
+<!DOCTYPE html>
+<html>
+<head><title>Host</title></head>
+<body>
+  <h2>Host</h2>
+  <input id="roomInput" placeholder="Enter Room ID" />
+  <button onclick="startBroadcast()">Start Broadcast</button>
+  <video id="hostVideo" autoplay muted playsinline></video>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    const hostVideo = document.getElementById("hostVideo");
+    const peerConnections = {};
+    let stream;
+
+    async function startBroadcast() {
+      const roomId = document.getElementById("roomInput").value;
+      if (!roomId) return alert("Enter room ID");
+      socket.emit("create-room", roomId);
+
+      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      hostVideo.srcObject = stream;
+    }
+
+    socket.on("new-viewer", async ({ viewerId }) => {
+      const pc = new RTCPeerConnection();
+      peerConnections[viewerId] = pc;
+
+      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+      pc.onicecandidate = e => {
+        if (e.candidate) {
+          socket.emit("ice-candidate", {
+            candidate: e.candidate,
+            targetId: viewerId
+          });
+        }
+      };
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      socket.emit("host-offer", { offer, viewerId });
+    });
+
+    socket.on("receive-answer", async ({ answer, viewerId }) => {
+      const pc = peerConnections[viewerId];
+      await pc.setRemoteDescription(new RTCSessionDescription(answer));
+    });
+
+    socket.on("ice-candidate", ({ candidate, senderId }) => {
+      const pc = peerConnections[senderId];
+      pc.addIceCandidate(new RTCIceCandidate(candidate));
+    });
+  </script>
+</body>
+</html> -->
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Host</title>
+  <style>
+    body { display: flex; height: 100vh; margin: 0; font-family: sans-serif; }
+    #users { width: 20%; background: #eee; padding: 10px; overflow-y: auto; }
+    #chat { width: 20%; background: #f7f7f7; padding: 10px; display: flex; flex-direction: column; }
+    #main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+    video { width: 80%; height: auto; border: 2px solid #333; }
+    #controls { position: absolute; bottom: 10px; display: flex; gap: 10px; background: #fff; padding: 10px; border-radius: 10px; }
+  </style>
+</head>
+<body>
+  <div id="users">
+    <h4>Users</h4>
+    <ul id="userList"></ul>
+  </div>
+  <div id="main">
+    <video id="hostVideo" autoplay muted playsinline></video>
+    <div id="controls">
+      <button onclick="toggleVideo()">🎥</button>
+      <button onclick="toggleAudio()">🎤</button>
+      <button onclick="shareScreen()">🖥️</button>
+      <button onclick="endMeeting()">❌ End</button>
+    </div>
+  </div>
+  <div id="chat">
+    <div id="messages" style="flex: 1; overflow-y: auto;"></div>
+    <input id="chatInput" placeholder="Type message..." />
+    <button onclick="sendMessage()">Send</button>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    const username = prompt("Enter your name");
+    const roomId = prompt("Enter room ID to create");
+    const video = document.getElementById("hostVideo");
+    const peerConnections = {};
+    const messages = document.getElementById("messages");
+    const userList = document.getElementById("userList");
+    let stream;
+
+    socket.emit("create-room", { roomId, username });
+
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(s => {
+      stream = s;
+      video.srcObject = stream;
+    });
+
+    socket.on("new-viewer", async ({ viewerId }) => {
+      const pc = new RTCPeerConnection();
+      peerConnections[viewerId] = pc;
+      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+      pc.onicecandidate = e => {
+        if (e.candidate) socket.emit("ice-candidate", { candidate: e.candidate, targetId: viewerId });
+      };
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      socket.emit("host-offer", { offer, viewerId });
+    });
+
+    socket.on("receive-answer", ({ answer, viewerId }) => {
+      peerConnections[viewerId].setRemoteDescription(new RTCSessionDescription(answer));
+    });
+
+    socket.on("ice-candidate", ({ candidate, senderId }) => {
+      peerConnections[senderId].addIceCandidate(new RTCIceCandidate(candidate));
+    });
+
+    function toggleVideo() {
+      const videoTrack = stream.getVideoTracks()[0];
+      videoTrack.enabled = !videoTrack.enabled;
+    }
+
+    function toggleAudio() {
+      const audioTrack = stream.getAudioTracks()[0];
+      audioTrack.enabled = !audioTrack.enabled;
+    }
+
+    function shareScreen() {
+      navigator.mediaDevices.getDisplayMedia({ video: true }).then(screenStream => {
+        const screenTrack = screenStream.getVideoTracks()[0];
+        Object.values(peerConnections).forEach(pc => {
+          const sender = pc.getSenders().find(s => s.track.kind === "video");
+          sender.replaceTrack(screenTrack);
+        });
+      });
+    }
+
+    function sendMessage() {
+      const input = document.getElementById("chatInput");
+      if (input.value) {
+        socket.emit("chat-message", input.value);
+        input.value = "";
+      }
+    }
+
+    socket.on("chat-message", ({ user, message }) => {
+      messages.innerHTML += `<div><b>${user}:</b> ${message}</div>`;
+    });
+
+    socket.on("update-user-list", users => {
+      userList.innerHTML = "";
+      for (let id in users) {
+        const li = document.createElement("li");
+        li.textContent = users[id];
+        userList.appendChild(li);
+      }
+    });
+
+    function endMeeting() {
+      socket.emit("end-meeting");
+      window.location.reload();
+    }
+  </script>
+</body>
+</html>
